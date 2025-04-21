@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fashion.io</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: #C1E899; /* soft green */
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            background-color: #E6F0DC; /* very light green */
+            border: 2px solid #55883B; /* darker green border */
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #55883B;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        #chatbox {
+            background-color: white;
+            border: 1px solid #C1E899;
+            border-radius: 10px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .user {
+            color: #9A6735; /* caramel brown */
+            margin-bottom: 5px;
+        }
+
+        .bot {
+            color: #55883B;
+            margin-bottom: 5px;
+        }
+
+        form {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #C1E899;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+
+        button {
+            background-color: #55883B;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #466d2f;
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <h1>Fashion.io</h1>
+    <div id="chatbox"></div>
+
+    <form id="chat-form">
+        <input type="text" id="userInput" autocomplete="off" placeholder="Ask me something stylish..." required />
+        <button type="submit">Send</button>
+    </form>
+</div>
+
+<script>
+    const form = document.getElementById("chat-form");
+    const input = document.getElementById("userInput");
+    const chatbox = document.getElementById("chatbox");
+
+    form.onsubmit = async function(e) {
+        e.preventDefault();
+        const userText = input.value;
+        chatbox.innerHTML += `<div class="user">You: ${userText}</div>`;
+        input.value = "";
+
+        const response = await fetch("/get", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "msg=" + encodeURIComponent(userText)
+        });
+
+        const botReply = await response.text();
+        chatbox.innerHTML += `<div class="bot">Fashion.io: ${botReply}</div>`;
+        chatbox.scrollTop = chatbox.scrollHeight;
+    }
+</script>
+
+</body>
+</html>
