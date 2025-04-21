@@ -12,12 +12,13 @@ Make sure Anaconda is installed. Open the Anaconda Prompt to begin setup.
 
 Navigate to the project folder where requirements.txt is located, then run:
 
-conda create --name garment_env --file requirements.txt
+conda create --name garment_env python=3.10
+
+Once created, run the following:
 conda activate garment_env
 
-If requirements.txt was created using pip freeze instead, use:
-
 pip install -r requirements.txt
+
 
 3. Run the Script
 
