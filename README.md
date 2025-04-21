@@ -24,6 +24,6 @@ pip install -r requirements.txt
 
 After activating the environment, run:
 
-python LLM_RAG.py
+python RAG.py
 
 This starts the pattern retrieval system.
