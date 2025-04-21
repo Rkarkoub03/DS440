@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fashion.io</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: #C1E899; /* soft green */
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            background-color: #E6F0DC; /* very light green */
+            border: 2px solid #55883B; /* darker green border */
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #55883B;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        #chatbox {
+            background-color: white;
+            border: 1px solid #C1E899;
+            border-radius: 10px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .user {
+            color: #9A6735; /* caramel brown */
+            margin-bottom: 5px;
+        }
+
+        .bot {
+            color: #55883B;
+            margin-bottom: 5px;
+        }
+
+        form {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #C1E899;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+
+        button {
+            background-color: #55883B;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #466d2f;
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <h1>Fashion.io</h1>
+    <div class="intro-callout">
+        <div class="prompt-header">What do you want to make?</div>
+        <p>Describe the kind of garment you're imagining — like <span class="suggestion">"flowy summer dress"</span>, <span class="suggestion">"fitted blazer"</span>, or <span class="suggestion">"something with oversized sleeves"</span>.</p>
+        <p>Fashion.io will show you real design patterns and visual references to help you bring your idea to life.</p>
+    </div>
+    
+    <div id="chatbox"></div>
+    
+    <style>
+        .intro-callout {
+            background: #ffffffdd;
+            border-left: 6px solid #55883B;
+            padding: 24px;
+            border-radius: 14px;
+            margin-bottom: 25px;
+            color: #2c3e1f;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            animation: fadeIn 0.6s ease;
+        }
+    
+        .prompt-header {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #3b6122;
+            margin-bottom: 12px;
+        }
+    
+        .suggestion {
+            background-color: #dff4c6;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+    
+        .suggestion:hover {
+            background-color: #c1e899;
+            cursor: pointer;
+        }
+    
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+
+    <form id="chat-form">
+        <input type="text" id="userInput" autocomplete="off" placeholder="Ask me something stylish..." required />
+        <button type="submit">Send</button>
+    </form>
+</div>
+
+<script>
+    const form = document.getElementById("chat-form");
+    const input = document.getElementById("userInput");
+    const chatbox = document.getElementById("chatbox");
+
+    form.onsubmit = async function(e) {
+        e.preventDefault();
+        const userText = input.value;
+        chatbox.innerHTML += `<div class="user">You: ${userText}</div>`;
+        input.value = "";
+
+        const response = await fetch("/get", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "msg=" + encodeURIComponent(userText)
+        });
+
+        const matches = await response.json();
+        if (matches.length === 0) {
+            chatbox.innerHTML += `<div class="bot">Fashion.io: No matching garments found.</div>`;
+        } else {
+            let html = `<div class="bot"><strong>Fashion.io: Matching Garments</strong><br>`;
+            matches.forEach(g => {
+                html += `<div style="margin-bottom: 20px;"><strong>${g.id}</strong><br>`;
+                    g.images.forEach((img, index) => {
+                        if (index < 3) {
+                          html += `<img src="${img}" alt="Image" style="max-width: 100px; margin: 5px; border-radius: 6px;">`;
+                         } else if (index === 3) {
+                             html += `<br><a href="${img}" download style="display: inline-block; margin-top: 8px; padding: 8px 14px; background-color: #55883B; color: white; text-decoration: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; transition: background-color 0.3s ease;">Download Pattern</a>`;
+    }
+        });
+
+                html += `</div>`;
+            });
+            html += `</div>`;
+            chatbox.innerHTML += html;
+        }
+
+        chatbox.scrollTop = chatbox.scrollHeight;
+    }
+</script>
+<script>
+    document.querySelectorAll('.suggestion').forEach(el => {
+        el.addEventListener('click', () => {
+            const input = document.getElementById("userInput");
+            input.value = el.textContent;
+            form.dispatchEvent(new Event("submit"));
+        });
+    });
+</script>
+
+
+</body>
+</html>

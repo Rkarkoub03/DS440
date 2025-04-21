@@ -1,24 +1,29 @@
+
 import os
+import sys
 import json
 import yaml
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from google.cloud import storage
 
-# === FINAL HARD-CODED CONFIG ===
+# === Set relative path to GCS credentials ===
+key_path = os.path.join(os.path.dirname(__file__), "gcs-key.json")
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = key_path
+
+print("🚀 Script started...", flush=True)
+sys.stdout.reconfigure(line_buffering=True)
+
+# === CONFIG ===
 PROJECT_ID = "ds440-455420"
 BUCKET_NAME = "garmentcode-data"
-DATASET_PREFIX = "GarmentCodeData_v2"
-OUTPUT_DIR = "/home/rkarkoub03/Processed_data"
+RAW_PREFIX = "GarmentCodeData_v2"
+ENCODED_PREFIX = "EncodedGarmentDB"
 
-# === Load Embedding Model ===
 model = SentenceTransformer("all-MiniLM-L6-v2")
-
-# === Initialize GCS Client ===
 storage_client = storage.Client(project=PROJECT_ID)
 bucket = storage_client.bucket(BUCKET_NAME)
 
-# === Extract meaningful features from nested design data ===
 def extract_meaningful_values(d, prefix=''):
     descriptions = []
     for key, value in d.items():
@@ -35,7 +40,6 @@ def extract_meaningful_values(d, prefix=''):
                 descriptions.extend(extract_meaningful_values(value, full_key))
     return descriptions
 
-# === Convert extracted values into a natural-language description ===
 def build_generic_description(attribute_list):
     sentences = []
     for item in attribute_list:
@@ -45,29 +49,31 @@ def build_generic_description(attribute_list):
         sentences.append(pretty)
     return "This garment includes: " + ", ".join(sentences) + "."
 
-# === Load and process garments from GCS ===
 def load_garments():
     garment_docs = []
-    garment_sets = [f"{DATASET_PREFIX}/garments_5000_{i}/" for i in range(10)]
+    garment_sets = [f"{RAW_PREFIX}/garments_5000_0/"]  # Limit to one subset for now
 
     for prefix in garment_sets:
         for body_type in ["default_body", "random_body"]:
             body_prefix = f"{prefix}{body_type}/"
-            blobs = list(bucket.list_blobs(prefix=body_prefix))
+            print(f"📁 Listing garments under: {body_prefix}", flush=True)
 
-            garment_folders = set(os.path.basename(blob.name.rstrip("/")).split("/")[0] for blob in blobs if blob.name.endswith("/"))
+            blobs = bucket.list_blobs(prefix=body_prefix, page_size=100)
+            garment_folders = set()
+            for blob in blobs:
+                parts = blob.name.split("/")
+                if len(parts) >= 5 and parts[-1].endswith(".yaml") and parts[3].startswith("rand_"):
+                    garment_folders.add(parts[3])
+
+            print(f"🧵 Found garment folders: {len(garment_folders)}", flush=True)
 
             for folder in garment_folders:
-                if not folder.startswith("rand_"):
-                    continue
+                print(f"📂 Processing: {folder}", flush=True)
 
                 try:
-                    design_blob_path = f"{body_prefix}{folder}/{folder}_design_params.yaml"
-                    spec_blob_path = f"{body_prefix}{folder}/{folder}_specification.json"
+                    design_blob = bucket.blob(f"{body_prefix}{folder}/{folder}_design_params.yaml")
+                    spec_blob = bucket.blob(f"{body_prefix}{folder}/{folder}_specification.json")
 
-                    # Read directly from GCS as strings
-                    design_blob = bucket.blob(design_blob_path)
-                    spec_blob = bucket.blob(spec_blob_path)
                     design_data = yaml.safe_load(design_blob.download_as_string())
                     spec_data = json.loads(spec_blob.download_as_string())
 
@@ -94,29 +100,36 @@ def load_garments():
                         ]
                     })
 
+                    print(f"✅ Finished: {folder}", flush=True)
+
                 except Exception as e:
-                    print(f"Skipping {folder}: {e}")
+                    print(f"❌ Skipping {folder}: {e}", flush=True)
 
     return garment_docs
 
-# === Encode the text descriptions into vectors ===
 def encode_descriptions(garment_docs):
+    print("🧠 Encoding garment descriptions...", flush=True)
     descriptions = [g["description_raw"] for g in garment_docs]
     return model.encode(descriptions, convert_to_tensor=False).astype("float32")
 
-# === Save vector and document data locally ===
 def save_outputs(garment_docs, vectors):
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    with open(os.path.join(OUTPUT_DIR, "vectors.npy"), "wb") as f:
-        np.save(f, vectors)
-    with open(os.path.join(OUTPUT_DIR, "garment_docs.json"), "w") as f:
+    print("📤 Uploading vectors and metadata to GCS...", flush=True)
+
+    tmp_vector = "/tmp/vectors.npy"
+    tmp_docs = "/tmp/garment_docs.json"
+
+    np.save(tmp_vector, vectors)
+    with open(tmp_docs, "w") as f:
         json.dump(garment_docs, f, indent=4)
 
-# === Main entrypoint ===
+    bucket.blob(f"{ENCODED_PREFIX}/vectors.npy").upload_from_filename(tmp_vector)
+    bucket.blob(f"{ENCODED_PREFIX}/garment_docs.json").upload_from_filename(tmp_docs)
+
+    print(f"✅ Upload complete → gs://{BUCKET_NAME}/{ENCODED_PREFIX}/", flush=True)
+
 if __name__ == "__main__":
-    print("Loading garments directly from Google Cloud Storage...")
+    print("🔄 Loading garments directly from Google Cloud Storage...", flush=True)
     garment_docs = load_garments()
-    print(f"Loaded {len(garment_docs)} garments. Encoding descriptions...")
+    print(f"📦 Total garments loaded: {len(garment_docs)}", flush=True)
     vectors = encode_descriptions(garment_docs)
     save_outputs(garment_docs, vectors)
-    print("✅ Saved vectors and garment docs to:", OUTPUT_DIR)
